@@ -1,7 +1,8 @@
 'use client';
 
-import { Menu, LogOut, User } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Menu, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { api, setAccessToken } from '@/lib/api/axios-instance';
@@ -11,13 +12,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { SidebarNav } from './sidebar'; // Sidebar-এর বদলে SidebarNav আনা হলো
+import { SidebarNav } from './sidebar';
 
 export function Topbar() {
   const router = useRouter();
@@ -31,10 +33,11 @@ export function Topbar() {
     } catch (error) {
       console.error('Logout failed', error);
     } finally {
-      logout();
       setAccessToken(null);
-      if (typeof window !== 'undefined')
+      if (typeof window !== 'undefined') {
         localStorage.removeItem('refreshToken');
+      }
+      logout();
       router.push('/login');
     }
   };
@@ -63,43 +66,54 @@ export function Topbar() {
 
       <div className='flex items-center gap-4'>
         <DropdownMenu>
-          <DropdownMenuTrigger className='focus:outline-none rounded-full border border-border shadow-sm hover:opacity-80 transition-opacity'>
-            <Avatar className='h-10 w-10'>
-              <AvatarImage src='' alt={user?.name || 'Admin'} />
-              <AvatarFallback className='bg-primary/10 text-primary'>
+          <DropdownMenuTrigger className='focus:outline-none rounded-full cursor-pointer hover:opacity-80 transition-opacity'>
+            <Avatar className='h-10 w-10 border border-border shadow-sm'>
+              <AvatarImage
+                src={user?.avatar || ''}
+                alt={user?.name || 'Admin'}
+              />
+              <AvatarFallback className='bg-primary/10 text-primary font-semibold'>
                 {user?.name?.charAt(0).toUpperCase() || 'A'}
               </AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
 
           <DropdownMenuContent className='w-56' align='end'>
-            <DropdownMenuLabel className='font-normal'>
-              <div className='flex flex-col space-y-1'>
-                <p className='text-sm font-medium leading-none'>
-                  {user?.name || 'Admin'}
-                </p>
-                <p className='text-xs leading-none text-muted-foreground'>
-                  {user?.email}
-                </p>
-              </div>
-            </DropdownMenuLabel>
+            {/* Base UI requirement অনুযায়ী DropdownMenuGroup ব্যবহার করা হয়েছে */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className='font-normal p-2'>
+                <div className='flex flex-col space-y-1'>
+                  <p className='text-sm font-medium leading-none'>
+                    {user?.name || 'Admin'}
+                  </p>
+                  <p className='text-xs leading-none text-muted-foreground truncate'>
+                    {user?.email || ''}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem
-              onClick={() => router.push('/dashboard/settings')}
-              className='cursor-pointer'
-            >
-              <User className='mr-2 h-4 w-4' />
-              <span>Profile Settings</span>
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild className='cursor-pointer'>
+                <Link
+                  href='/dashboard/profile'
+                  className='flex items-center w-full'
+                >
+                  <User className='mr-2 h-4 w-4' />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={handleLogout}
-              className='cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive mt-1'
-            >
-              <LogOut className='mr-2 h-4 w-4' />
-              <span>Log out</span>
-            </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className='cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive mt-1'
+              >
+                <LogOut className='mr-2 h-4 w-4' />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
