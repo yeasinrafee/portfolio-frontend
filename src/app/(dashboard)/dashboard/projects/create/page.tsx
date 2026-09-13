@@ -1,8 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,6 +19,7 @@ import {
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 import { api } from '@/lib/api/axios-instance';
+import { useCategories } from '@/lib/hooks/use-categories';
 import { projectKeys } from '@/lib/hooks/use-projects';
 
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -56,10 +56,10 @@ const formSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   shortSummary: z.string().optional(),
   clientName: z.string().optional(),
-  category: z.string().optional(),
+  categoryId: z.string().optional().or(z.literal('')),
   status: z.enum(['DRAFT', 'PUBLISHED']),
   featured: z.boolean().default(false),
-  order: z.coerce.number().default(0), // Added project order field
+  order: z.coerce.number().default(0),
   liveUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   repoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   startDate: z.string().optional(),
@@ -91,11 +91,15 @@ export default function CreateProjectPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Fetch PROJECT categories for dropdown
+  const { data: categories = [], isLoading: isLoadingCategories } =
+    useCategories('PROJECT');
+
   const { data: techResponse } = useQuery({
     queryKey: ['technologies'],
     queryFn: async () => {
       const { data } = await api.get('/technologies');
-      return data?.data || [];
+      return data?.data?.data || data?.data || data || [];
     },
   });
 
@@ -106,7 +110,7 @@ export default function CreateProjectPage() {
       description: '',
       shortSummary: '',
       clientName: '',
-      category: '',
+      categoryId: '',
       status: 'DRAFT',
       featured: false,
       order: 0,
@@ -124,7 +128,6 @@ export default function CreateProjectPage() {
     },
   });
 
-  // Watchers for dynamic SEO fallback hints
   const watchTitle = form.watch('title');
   const watchImages = form.watch('images');
 
@@ -153,10 +156,11 @@ export default function CreateProjectPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
+      const uploadedUrl = data?.data?.url || data?.url;
       const currentImages = form.getValues('images');
       form.setValue('images', [
         ...currentImages,
-        { url: data.url, alt: file.name, order: currentImages.length },
+        { url: uploadedUrl, alt: file.name, order: currentImages.length },
       ]);
       toast.success('Image uploaded successfully');
     } catch (error) {
@@ -170,7 +174,7 @@ export default function CreateProjectPage() {
     const currentImages = form.getValues('images');
     const updatedImages = currentImages
       .filter((_, index) => index !== indexToRemove)
-      .map((img, index) => ({ ...img, order: index })); // Re-sync order after deletion
+      .map((img, index) => ({ ...img, order: index }));
     form.setValue('images', updatedImages);
   };
 
@@ -187,7 +191,7 @@ export default function CreateProjectPage() {
         newImages[index + 1],
       ];
     }
-    const updatedImages = newImages.map((img, i) => ({ ...img, order: i })); // Sync order with array index
+    const updatedImages = newImages.map((img, i) => ({ ...img, order: i }));
     form.setValue('images', updatedImages);
   };
 
@@ -199,6 +203,10 @@ export default function CreateProjectPage() {
 
       const payload = {
         ...values,
+        categoryId:
+          values.categoryId && values.categoryId !== 'NONE'
+            ? values.categoryId
+            : undefined,
         startDate: values.startDate
           ? new Date(values.startDate).toISOString()
           : null,
@@ -213,7 +221,7 @@ export default function CreateProjectPage() {
         repoUrl: cleanUrl(values.repoUrl),
         ogImage: cleanUrl(values.ogImage),
         canonicalUrl: cleanUrl(values.canonicalUrl),
-        images: values.images.map((img, idx) => ({ ...img, order: idx })), // Final order sync
+        images: values.images.map((img, idx) => ({ ...img, order: idx })),
       };
 
       await api.post('/projects', payload);
@@ -321,15 +329,46 @@ export default function CreateProjectPage() {
                     />
                   </div>
 
+                  {/* Category Dropdown */}
                   <FormField
                     control={form.control}
-                    name='category'
+                    name='categoryId'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input placeholder='e.g. Web App' {...field} />
-                        </FormControl>
+                        <FormLabel>Category (Optional)</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  isLoadingCategories
+                                    ? 'Loading categories...'
+                                    : 'Select a category'
+                                }
+                              >
+                                {
+                                  categories.find(
+                                    (cat) => cat.id === field.value,
+                                  )?.name
+                                }
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value='NONE'>
+                              None (No Category)
+                            </SelectItem>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -469,7 +508,6 @@ export default function CreateProjectPage() {
                       </Button>
                     </div>
 
-                    {/* Interactive Image Ordering Grid */}
                     {watchImages.length > 0 && (
                       <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mt-4'>
                         {watchImages.map((img, idx) => (
@@ -483,7 +521,6 @@ export default function CreateProjectPage() {
                               className='w-full h-full object-cover'
                             />
 
-                            {/* Hover Overlay Controls */}
                             <div className='absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]'>
                               <button
                                 type='button'
@@ -515,7 +552,6 @@ export default function CreateProjectPage() {
                               </button>
                             </div>
 
-                            {/* Order Badge indicator */}
                             <div className='absolute top-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded'>
                               {idx + 1}
                             </div>

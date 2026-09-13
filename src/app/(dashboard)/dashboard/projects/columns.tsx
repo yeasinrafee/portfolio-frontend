@@ -27,7 +27,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// নতুন তৈরি করা মোডালটি ইমপোর্ট করা হলো
 import { ProjectPreviewModal } from '@/components/dashboard/project-preview-modal';
 
 export type Project = {
@@ -35,7 +34,8 @@ export type Project = {
   title: string;
   slug: string;
   status: 'DRAFT' | 'PUBLISHED';
-  category?: string;
+  categoryId?: string;
+  category?: { id: string; name: string; slug?: string } | string;
   viewCount: number;
   featured: boolean;
   shortSummary?: string;
@@ -213,13 +213,16 @@ export const getColumns = (
     },
   },
   {
-    accessorKey: 'category',
+    id: 'category',
     header: 'Category',
-    cell: ({ row }) => (
-      <div className='text-muted-foreground'>
-        {row.getValue('category') || '-'}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const cat = row.original.category;
+      return (
+        <div className='text-muted-foreground'>
+          {typeof cat === 'object' ? cat?.name : cat || '-'}
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'viewCount',

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -39,6 +40,12 @@ export function ProjectPreviewModal({
     });
   };
 
+  // Helper to extract category name safely
+  const categoryName =
+    typeof project.category === 'object'
+      ? project.category?.name
+      : project.category;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -47,7 +54,7 @@ export function ProjectPreviewModal({
       >
         <div className='max-h-[85vh] overflow-y-auto w-full'>
           {/* Cover Image Header */}
-          <div className='relative w-full h-[250px] sm:h-[350px] bg-muted'>
+          <div className='relative w-full h-62.5 sm:h-87.5 bg-muted'>
             {project.images?.length > 0 ? (
               <img
                 src={project.images[0].url}
@@ -80,7 +87,7 @@ export function ProjectPreviewModal({
               )}
             </div>
 
-            <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-6 pt-24'>
+            <div className='absolute inset-x-0 bottom-0 bg-linear-to-t from-black/95 via-black/60 to-transparent p-6 pt-24'>
               <DialogTitle className='text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white mb-3 leading-tight'>
                 {project.title}
               </DialogTitle>
@@ -88,9 +95,9 @@ export function ProjectPreviewModal({
                 <span className='flex items-center gap-1.5'>
                   <Eye className='w-4 h-4' /> {project.viewCount} Views
                 </span>
-                {project.category && (
+                {categoryName && (
                   <span className='flex items-center gap-1.5 border-l border-white/30 pl-4'>
-                    <Tag className='w-4 h-4' /> {project.category}
+                    <Tag className='w-4 h-4' /> {categoryName}
                   </span>
                 )}
               </div>

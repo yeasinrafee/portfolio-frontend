@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState } from 'react';
@@ -9,6 +11,8 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Edit, Award, FolderCode, Upload, X } from 'lucide-react';
 
 import { api } from '@/lib/api/axios-instance';
+import { useCategories } from '@/lib/hooks/use-categories';
+import { CategoryBrief } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +25,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -41,7 +52,7 @@ import {
 
 const skillSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  category: z.string().optional(),
+  categoryId: z.string().min(1, 'Category is required'),
   icon: z.string().optional().or(z.literal('')),
   order: z.coerce.number().default(0),
 });
@@ -49,7 +60,8 @@ const skillSchema = z.object({
 type Skill = {
   id: string;
   name: string;
-  category?: string;
+  categoryId: string;
+  category?: CategoryBrief;
   icon?: string;
   order: number;
 };
@@ -66,12 +78,16 @@ export default function SkillsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch TECH categories for dropdown
+  const { data: categories = [], isLoading: isLoadingCategories } =
+    useCategories('TECH');
+
   // Fetch all skills
   const { data: response, isLoading } = useQuery({
     queryKey: ['skills'],
     queryFn: async () => {
       const { data } = await api.get('/skills');
-      return data?.data || data;
+      return data?.data?.data || data?.data || data;
     },
   });
 
@@ -79,12 +95,12 @@ export default function SkillsPage() {
 
   const form = useForm<z.infer<typeof skillSchema>>({
     resolver: zodResolver(skillSchema),
-    defaultValues: { name: '', category: '', icon: '', order: 0 },
+    defaultValues: { name: '', categoryId: '', icon: '', order: 0 },
   });
 
   const editForm = useForm<z.infer<typeof skillSchema>>({
     resolver: zodResolver(skillSchema),
-    defaultValues: { name: '', category: '', icon: '', order: 0 },
+    defaultValues: { name: '', categoryId: '', icon: '', order: 0 },
   });
 
   // Image Upload Helper for Add Form
@@ -104,10 +120,11 @@ export default function SkillsPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
+      const uploadedUrl = data?.data?.url || data?.url;
       if (isEdit) {
-        editForm.setValue('icon', data.url);
+        editForm.setValue('icon', uploadedUrl);
       } else {
-        form.setValue('icon', data.url);
+        form.setValue('icon', uploadedUrl);
       }
       toast.success('Icon uploaded successfully');
     } catch (error) {
@@ -145,7 +162,7 @@ export default function SkillsPage() {
     setSelectedSkill(skill);
     editForm.reset({
       name: skill.name || '',
-      category: skill.category || '',
+      categoryId: skill.categoryId || skill.category?.id || '',
       icon: skill.icon || '',
       order: skill.order || 0,
     });
@@ -234,15 +251,42 @@ export default function SkillsPage() {
                     </FormItem>
                   )}
                 />
+
+                {/* Category Dropdown */}
                 <FormField
                   control={form.control}
-                  name='category'
+                  name='categoryId'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <Input placeholder='e.g. Frontend' {...field} />
-                      </FormControl>
+                      <FormLabel>Category *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                isLoadingCategories
+                                  ? 'Loading categories...'
+                                  : 'Select a category'
+                              }
+                            >
+                              {
+                                categories.find((cat) => cat.id === field.value)
+                                  ?.name
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -360,9 +404,9 @@ export default function SkillsPage() {
                     <h3 className='font-semibold text-base truncate'>
                       {skill.name}
                     </h3>
-                    {skill.category && (
+                    {skill.category?.name && (
                       <Badge variant='secondary' className='text-[10px]'>
-                        {skill.category}
+                        {skill.category.name}
                       </Badge>
                     )}
                   </div>
@@ -423,15 +467,33 @@ export default function SkillsPage() {
                   </FormItem>
                 )}
               />
+
+              {/* Category Dropdown (Edit) */}
               <FormField
                 control={editForm.control}
-                name='category'
+                name='categoryId'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormLabel>Category *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder='Select a category'>
+                            {
+                              categories.find((cat) => cat.id === field.value)
+                                ?.name
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -525,7 +587,7 @@ export default function SkillsPage() {
               skill
               <span className='font-semibold text-foreground'>
                 {' '}
-                "{skillToDelete?.name}"{' '}
+                &quot;{skillToDelete?.name}&quot;{' '}
               </span>
               from your database.
             </AlertDialogDescription>

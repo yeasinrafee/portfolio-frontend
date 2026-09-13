@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,6 +20,7 @@ import {
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 import { api } from '@/lib/api/axios-instance';
+import { useCategories } from '@/lib/hooks/use-categories';
 import { projectKeys } from '@/lib/hooks/use-projects';
 
 import { Button } from '@/components/ui/button';
@@ -35,7 +37,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -51,13 +52,12 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 
-// Same schema as Create page
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
   shortSummary: z.string().optional(),
   clientName: z.string().optional(),
-  category: z.string().optional(),
+  categoryId: z.string().optional().or(z.literal('')),
   status: z.enum(['DRAFT', 'PUBLISHED']),
   featured: z.boolean().default(false),
   order: z.coerce.number().default(0),
@@ -69,7 +69,7 @@ const formSchema = z.object({
   images: z
     .array(
       z.object({
-        id: z.string().optional(), // id is optional for new images
+        id: z.string().optional(),
         url: z.string(),
         alt: z.string().optional(),
         order: z.number().default(0),
@@ -96,6 +96,10 @@ export default function EditProjectPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Fetch PROJECT categories for dropdown[cite: 2]
+  const { data: categories = [], isLoading: isLoadingCategories } =
+    useCategories('PROJECT');
+
   // Fetch single project data[cite: 1]
   const {
     data: projectResponse,
@@ -116,7 +120,7 @@ export default function EditProjectPage() {
     queryKey: ['technologies'],
     queryFn: async () => {
       const { data } = await api.get('/technologies');
-      return data?.data || [];
+      return data?.data?.data || data?.data || data || [];
     },
   });
 
@@ -127,7 +131,7 @@ export default function EditProjectPage() {
       description: '',
       shortSummary: '',
       clientName: '',
-      category: '',
+      categoryId: '',
       status: 'DRAFT',
       featured: false,
       order: 0,
@@ -148,7 +152,6 @@ export default function EditProjectPage() {
   // Populate form when project data is loaded
   useEffect(() => {
     if (project) {
-      // Format dates for <input type="date" />
       const formatDateForInput = (dateString: string) => {
         if (!dateString) return '';
         return new Date(dateString).toISOString().split('T')[0];
@@ -159,7 +162,7 @@ export default function EditProjectPage() {
         description: project.description || '',
         shortSummary: project.shortSummary || '',
         clientName: project.clientName || '',
-        category: project.category || '',
+        categoryId: project.categoryId || project.category?.id || 'NONE',
         status: project.status || 'DRAFT',
         featured: project.featured || false,
         order: project.order || 0,
@@ -168,7 +171,6 @@ export default function EditProjectPage() {
         startDate: formatDateForInput(project.startDate),
         endDate: formatDateForInput(project.endDate),
         technologyIds: project.technologies?.map((t: any) => t.id) || [],
-        // Sort images by order to ensure correct display sequence
         images:
           project.images?.sort((a: any, b: any) => a.order - b.order) || [],
         metaTitle: project.metaTitle || '',
@@ -180,7 +182,6 @@ export default function EditProjectPage() {
     }
   }, [project, form]);
 
-  // Dynamic SEO Fallback watchers
   const watchTitle = form.watch('title');
   const watchImages = form.watch('images');
 
@@ -196,7 +197,6 @@ export default function EditProjectPage() {
       ? watchImages[0].url
       : 'First project image (Not uploaded yet)';
 
-  // Image handlers (Same as Create)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -210,10 +210,11 @@ export default function EditProjectPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
+      const uploadedUrl = data?.data?.url || data?.url;
       const currentImages = form.getValues('images');
       form.setValue('images', [
         ...currentImages,
-        { url: data.url, alt: file.name, order: currentImages.length },
+        { url: uploadedUrl, alt: file.name, order: currentImages.length },
       ]);
       toast.success('Image uploaded successfully');
     } catch (error) {
@@ -258,6 +259,10 @@ export default function EditProjectPage() {
 
       const payload = {
         ...values,
+        categoryId:
+          values.categoryId && values.categoryId !== 'NONE'
+            ? values.categoryId
+            : null,
         startDate: values.startDate
           ? new Date(values.startDate).toISOString()
           : null,
@@ -272,7 +277,6 @@ export default function EditProjectPage() {
         repoUrl: cleanUrl(values.repoUrl),
         ogImage: cleanUrl(values.ogImage),
         canonicalUrl: cleanUrl(values.canonicalUrl),
-        // Strip out image IDs if they exist so backend can recreate them cleanly as per PATCH behavior[cite: 1]
         images: values.images.map((img, idx) => ({
           url: img.url,
           alt: img.alt,
@@ -280,7 +284,6 @@ export default function EditProjectPage() {
         })),
       };
 
-      // PATCH request for updating[cite: 1]
       await api.patch(`/projects/${project.id}`, payload);
 
       toast.success('Project updated successfully!');
@@ -394,7 +397,7 @@ export default function EditProjectPage() {
                         <FormItem>
                           <FormLabel>Full Description *</FormLabel>
                           <FormControl>
-                            <Textarea className='min-h-[200px]' {...field} />
+                            <Textarea className='min-h-50' {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -402,15 +405,39 @@ export default function EditProjectPage() {
                     />
                   </div>
 
+                  {/* Category Dropdown (Edit) */}
                   <FormField
                     control={form.control}
-                    name='category'
+                    name='categoryId'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input placeholder='e.g. Web App' {...field} />
-                        </FormControl>
+                        <FormLabel>Category (Optional)</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder='Select category'>
+                                {
+                                  categories.find(
+                                    (cat) => cat.id === field.value,
+                                  )?.name
+                                }
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value='NONE'>
+                              None (No Category)
+                            </SelectItem>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -569,6 +596,7 @@ export default function EditProjectPage() {
                                 onClick={() => moveImage(idx, 'left')}
                                 disabled={idx === 0}
                                 className='p-1.5 bg-white/20 hover:bg-white/40 rounded text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+                                title='Move Left'
                               >
                                 <ChevronLeft className='w-4 h-4' />
                               </button>
@@ -577,6 +605,7 @@ export default function EditProjectPage() {
                                 type='button'
                                 onClick={() => removeImage(idx)}
                                 className='p-1.5 bg-destructive hover:bg-destructive/80 rounded text-white transition-colors'
+                                title='Delete'
                               >
                                 <Trash2 className='w-4 h-4' />
                               </button>
@@ -586,6 +615,7 @@ export default function EditProjectPage() {
                                 onClick={() => moveImage(idx, 'right')}
                                 disabled={idx === watchImages.length - 1}
                                 className='p-1.5 bg-white/20 hover:bg-white/40 rounded text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+                                title='Move Right'
                               >
                                 <ChevronRight className='w-4 h-4' />
                               </button>

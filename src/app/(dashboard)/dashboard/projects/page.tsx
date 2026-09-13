@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useCategories } from '@/lib/hooks/use-categories';
 import { DataTable } from '@/components/dashboard/data-table';
 import { getColumns } from './columns';
 
@@ -24,19 +25,21 @@ import {
 } from '@/components/ui/select';
 
 export default function ProjectsPage() {
-  // Filter and Pagination States
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
-  const limit = 20; // Enforced 20 items per page
+  const limit = 20;
 
-  // Simple debounce for search input to prevent excessive API calls
+  const { data: categories = [], isLoading: isLoadingCategories } =
+    useCategories('PROJECT');
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setPage(1); // Reset to page 1 on new search
+    setPage(1);
 
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(e.target.value);
@@ -44,10 +47,10 @@ export default function ProjectsPage() {
     return () => clearTimeout(timeoutId);
   };
 
-  // Fetch data using the custom hook with all filters
   const { data, isLoading, isError } = useProjects({
     search: debouncedSearch || undefined,
     status: statusFilter !== 'ALL' ? statusFilter : undefined,
+    categoryId: categoryFilter !== 'ALL' ? categoryFilter : undefined,
     sortBy,
     sortOrder,
     page,
@@ -57,7 +60,6 @@ export default function ProjectsPage() {
   const projects = data?.data || [];
   const meta = data?.meta || { total: 0, page: 1, limit: 20, totalPages: 1 };
 
-  // Generate columns with current pagination state for serial number calculation
   const columns = getColumns(page, limit);
 
   return (
@@ -72,17 +74,12 @@ export default function ProjectsPage() {
             Manage your portfolio projects and filters.
           </p>
         </div>
-        <Button
-          asChild
-          className='w-full sm:w-auto bg-primary hover:bg-primary/90 shadow-md'
-        >
-          <Link href='/dashboard/projects/create'>
-            <span className='flex justify-center items-center'>
-              <Plus className='w-4 h-4 mr-2' />
-              Add Project
-            </span>
-          </Link>
-        </Button>
+        <Link href='/dashboard/projects/create' className='w-full sm:w-auto'>
+          <Button className='w-full sm:w-auto bg-primary hover:bg-primary/90 shadow-md'>
+            <Plus className='w-4 h-4 mr-2' />
+            Add Project
+          </Button>
+        </Link>
       </div>
 
       {/* Filters & Sorting Bar */}
@@ -98,10 +95,39 @@ export default function ProjectsPage() {
           />
         </div>
 
-        {/* Status and Sort Filters */}
-        <div className='flex w-full md:w-auto items-center gap-3'>
+        {/* Filters */}
+        <div className='flex flex-wrap md:flex-nowrap w-full md:w-auto items-center gap-3'>
           <div className='flex items-center gap-2 w-full md:w-auto'>
             <SlidersHorizontal className='w-4 h-4 text-muted-foreground hidden sm:block' />
+
+            {/* Category Filter */}
+            <Select
+              value={categoryFilter}
+              onValueChange={(val) => {
+                setCategoryFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className='w-full md:w-[150px] bg-background/50'>
+                <SelectValue
+                  placeholder={isLoadingCategories ? 'Loading...' : 'Category'}
+                >
+                  {categoryFilter === 'ALL'
+                    ? 'All Categories'
+                    : categories.find((c) => c.id === categoryFilter)?.name}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='ALL'>All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
             <Select
               value={statusFilter}
               onValueChange={(val) => {
@@ -109,7 +135,7 @@ export default function ProjectsPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className='w-full md:w-[140px] bg-background/50'>
+              <SelectTrigger className='w-full md:w-[130px] bg-background/50'>
                 <SelectValue placeholder='Status' />
               </SelectTrigger>
               <SelectContent>
@@ -120,6 +146,7 @@ export default function ProjectsPage() {
             </Select>
           </div>
 
+          {/* Sort By */}
           <Select
             value={`${sortBy}-${sortOrder}`}
             onValueChange={(val) => {
