@@ -14,6 +14,8 @@ import {
   MessageCircle,
   Settings,
   Quote,
+  FolderTree,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -21,12 +23,22 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const sidebarLinks = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  {
+    name: 'Categories',
+    href: '/dashboard/categories',
+    icon: FolderTree,
+  },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban },
   { name: 'Blog', href: '/dashboard/blog', icon: FileText },
   { name: 'Technologies', href: '/dashboard/technologies', icon: Cpu },
   { name: 'Skills', href: '/dashboard/skills', icon: UserCircle },
   { name: 'Experience', href: '/dashboard/experience', icon: Briefcase },
   { name: 'Education', href: '/dashboard/education', icon: GraduationCap },
+  {
+    name: 'Achievements',
+    href: '/dashboard/achievements',
+    icon: Award,
+  },
   { name: 'Testimonials', href: '/dashboard/testimonials', icon: Quote },
   { name: 'Comments', href: '/dashboard/comments', icon: MessageCircle },
   { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
@@ -40,8 +52,8 @@ export function SidebarNav() {
   return (
     <div className='flex flex-col h-full bg-card border-r border-border'>
       <div className='p-6'>
-        <h2 className='text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent'>
-          Admin Panel
+        <h2 className='text-2xl font-bold bg-linear-to-r from-primary to-accent bg-clip-text text-transparent'>
+          Dashboard
         </h2>
       </div>
       <ScrollArea className='flex-1 px-4'>
