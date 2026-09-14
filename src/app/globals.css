@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
-/* Tailwind কে আমাদের কাস্টম কালারগুলো চেনানোর জন্য @theme ব্লক */
+@plugin "@tailwindcss/typography";
+
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -82,7 +83,6 @@
 }
 
 @layer base {
-  /* Tailwind v4 এ বর্ডার কালার ফিক্স করার স্ট্যান্ডার্ড নিয়ম */
   *,
   ::after,
   ::before,
@@ -95,5 +95,32 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     @apply font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .prose h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .prose h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+  .prose h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .prose h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
   }
 }

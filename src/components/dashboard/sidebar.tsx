@@ -29,7 +29,7 @@ const sidebarLinks = [
     icon: FolderTree,
   },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban },
-  { name: 'Blog', href: '/dashboard/blog', icon: FileText },
+  { name: 'Blogs', href: '/dashboard/blogs', icon: FileText },
   { name: 'Technologies', href: '/dashboard/technologies', icon: Cpu },
   { name: 'Skills', href: '/dashboard/skills', icon: UserCircle },
   { name: 'Experience', href: '/dashboard/experience', icon: Briefcase },
